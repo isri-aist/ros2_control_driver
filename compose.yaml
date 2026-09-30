@@ -1,0 +1,37 @@
+# Runs `uri interface` with the RobotDriverROS2Control plugin (see Dockerfile).
+#
+#   docker compose up            # pulls the image published by CI
+#   docker compose pull          # updates it to the latest main
+#   docker compose up --build    # builds it locally instead
+#
+# Configs are read from ./etc (mounted on /config): robot_interface.yaml,
+# whose config_path must point inside the container (e.g.
+# /config/ros2_control/ros2_control.yaml). Override with URI_CONFIG_DIR=/some/dir.
+services:
+  interface:
+    build:
+      context: .
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-ghcr.io/isri-aist/unified_robot_interface:latest}
+    image: ${ROS2_CONTROL_DRIVER_IMAGE:-ghcr.io/isri-aist/ros2_control_driver:latest}
+    # zenoh reaches the manager, and ROS 2 discovery reaches the running
+    # controller_manager, over the host network.
+    network_mode: host
+    # Needed by the zenoh/shm protocol (shared memory with the manager).
+    ipc: host
+    # `uri` has the cap_sys_nice file capability: exec fails without it.
+    cap_add:
+      - SYS_NICE
+    ulimits:
+      rtprio: 99
+      memlock: -1
+    volumes:
+      - ${URI_CONFIG_DIR:-./etc}:/config:ro
+    environment:
+      # Must match the controller_manager side.
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      RMW_IMPLEMENTATION: ${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
+    command: ["uri", "interface", "-c", "/config/${URI_CONFIG_FILE:-robot_interface.yaml}"]
+    stdin_open: true
+    tty: true
+    restart: "no"

@@ -1,0 +1,72 @@
+# Config passed to RobotDriverROS2Control (loaded from the path given as the
+# driver's "config_path" field in mc_rtc.yaml; see robot_interface.yaml).
+#
+# Assumes controller_manager is ALREADY RUNNING as its own process (started
+# the normal ros2_control way, e.g. the robot vendor's own launch file) with
+# joint_state_broadcaster + a forward_command_controller loaded and active.
+# This driver never launches or owns controller_manager; it's just another
+# ROS 2 node talking to it over topics/services.
+
+# The ROS 2 node name is "mc_rtc_ros2_control_driver_<name>", where <name> is
+# the top-level `name` in robot_interface.yaml; keep it unique when running
+# more than one instance against the same ROS 2 domain (e.g. one per arm of a
+# bimanual robot).
+
+# Joint order MUST match the mc_rtc RobotModule's joint (actuated dof) order
+# for this robot. Matched to /joint_states by NAME (not position), so the
+# publisher's own internal ordering doesn't matter; only that every name
+# here appears in that topic.
+joint_names:
+  - joint_1
+  - joint_2
+  - joint_3
+  - joint_4
+  - joint_5
+  - joint_6
+
+joint_states_topic: /joint_states
+
+# At least one of the three below must be set: whichever matches the
+# controller.mode configured for this robot in mc_rtc.yaml. Each must name a
+# forward_command_controller/ForwardCommandController's "commands" topic
+# (std_msgs/Float64MultiArray, values ordered per THAT controller's own
+# `joints:` list in controller_manager's yaml; keep joint_names above in
+# that same order).
+position_command_topic: /forward_position_controller/commands
+# velocity_command_topic: /forward_velocity_controller/commands
+# effort_command_topic: /forward_effort_controller/commands
+
+# If this robot's joints are split across SEVERAL controllers (e.g. one per
+# arm of a bimanual platform under a single controller_manager), use the
+# plural form instead: one entry per controller, each with its own joint
+# subset (must appear in joint_names above too). Same idea applies to
+# velocity_command_topics / effort_command_topics.
+# Not applicable here: openarm_left is a single 6-joint arm, already fully
+# covered by the singular position_command_topic above. See
+# etc/ros2_control/openarm_bimanual.yaml for a robot where this plural form is actually used.
+# position_command_topics:
+#   - topic: /left_forward_position_controller/commands
+#     joints: [joint_1, joint_2, joint_3]
+#   - topic: /right_forward_position_controller/commands
+#     joints: [joint_4, joint_5, joint_6]
+
+# Optional startup health check: fail fast (instead of silently
+# reading/writing into a void) if these controllers aren't active on
+# controller_manager_node. Uses the same
+# controller_manager_msgs/ListControllers service as `ros2 control
+# list_controllers`.
+controller_manager_node: /controller_manager
+required_controllers:
+  - joint_state_broadcaster
+  - forward_position_controller
+
+# Worked example: OpenArm (https://docs.openarm.dev/1.0/software/ros2/control/)
+# No driver code changes needed for this robot. Only config differs. This
+# particular file configures a SINGLE arm (openarm_left) via the singular
+# position_command_topic above. The mc_openarm RobotModule ("OpenArm") can
+# alternatively model the full bimanual platform as ONE 14-joint mc_rtc robot
+# (see /home/tduvinage/Documents/Projects/Schaeffler/mc_openarm), in which case
+# ONE RobotDriverROS2Control instance uses the plural position_command_topics
+# form instead: one entry per arm's forward_command_controller, both talking
+# to the same controller_manager. See etc/ros2_control/openarm_bimanual.yaml for that
+# full, actually-used config.

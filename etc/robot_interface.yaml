@@ -1,0 +1,9 @@
+name: ur5e
+
+robot_interface:
+  driver: RobotDriverROS2Control
+  # Path to this robot's ros2_control YAML (see etc/ros2_control/ros2_control.yaml),
+  config_path: /config/ros2_control/ur5e.yaml
+
+network_interface:
+  protocol: zenoh

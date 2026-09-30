@@ -1,0 +1,71 @@
+# Real working config for the OpenArm v1.0 bimanual platform (mc_openarm's
+# "OpenArm" RobotModule — ONE 14-joint mc_rtc robot, left1-7 then right1-7,
+# matching mc_openarm's _ref_joint_order) against a live controller_manager
+# with left/right_forward_position_controller active
+# (forward_command_controller/ForwardCommandController, interface_name:
+# position) and joint_state_broadcaster active.
+
+joint_names:
+  - openarm_left_joint1
+  - openarm_left_joint2
+  - openarm_left_joint3
+  - openarm_left_joint4
+  - openarm_left_joint5
+  - openarm_left_joint6
+  - openarm_left_joint7
+  - openarm_right_joint1
+  - openarm_right_joint2
+  - openarm_right_joint3
+  - openarm_right_joint4
+  - openarm_right_joint5
+  - openarm_right_joint6
+  - openarm_right_joint7
+
+joint_states_topic: /joint_states
+
+# Split across the two per-arm ForwardCommandControllers — each entry's
+# joints must be in the SAME order as that controller's own `joints:` param
+# in controller_manager (confirmed via `ros2 param get
+# /left_forward_position_controller joints`).
+position_command_topics:
+  - topic: /left_forward_position_controller/commands
+    joints:
+      - openarm_left_joint1
+      - openarm_left_joint2
+      - openarm_left_joint3
+      - openarm_left_joint4
+      - openarm_left_joint5
+      - openarm_left_joint6
+      - openarm_left_joint7
+  - topic: /right_forward_position_controller/commands
+    joints:
+      - openarm_right_joint1
+      - openarm_right_joint2
+      - openarm_right_joint3
+      - openarm_right_joint4
+      - openarm_right_joint5
+      - openarm_right_joint6
+      - openarm_right_joint7
+
+# Grippers (mc_openarm's "l_gripper"/"r_gripper", each one finger_joint1
+# per side) are NOT listed in joint_names above: RobotManager resolves them
+# from the RobotModule and forwards them via the init query, and the driver
+# appends their joints to joint_names_ itself. This only maps each gripper's
+# NAME to the ROS2 topic that serves it, here a JointTrajectoryController,
+# distinct from the arm's ForwardCommandController above (confirmed via
+# `ros2 control list_controllers` / `ros2 param get /left_gripper_controller
+# joints`).
+gripper_command_topics:
+  l_gripper: /left_gripper_controller/joint_trajectory
+  r_gripper: /right_gripper_controller/joint_trajectory
+
+# Disabled for now: the health-check round trip (with its retry-on-race
+# logic, controller_manager's first response after node creation can
+# race its own state sync) can exceed RobotManager's own init-query
+# timeout on a co-located autostart. controller_manager state already
+# confirmed independently via `ros2 control list_controllers`.
+# controller_manager_node: /controller_manager
+# required_controllers:
+#   - joint_state_broadcaster
+#   - left_forward_position_controller
+#   - right_forward_position_controller

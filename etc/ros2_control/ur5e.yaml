@@ -1,0 +1,25 @@
+# UR5e in Gazebo Sim, via UniversalRobots/Universal_Robots_ROS2_GZ_Simulation
+# (ur_simulation_gz, launched with ur_type:=ur5e). Assumes controller_manager
+# is already running with joint_state_broadcaster + forward_position_controller
+# active (the sim brings up joint_trajectory_controller active by default —
+# see README's "Switching which controller is active" section to swap it).
+
+# Matches mc_ur5e's RobotModule _ref_joint_order, and ur_simulation_gz's
+# ur_controllers.yaml `joints:` list (both the standard UR ros2_control
+# joint order).
+joint_names:
+  - shoulder_pan_joint
+  - shoulder_lift_joint
+  - elbow_joint
+  - wrist_1_joint
+  - wrist_2_joint
+  - wrist_3_joint
+
+joint_states_topic: /joint_states
+
+position_command_topic: /forward_position_controller/commands
+
+controller_manager_node: /controller_manager
+# required_controllers:
+#   - joint_state_broadcaster
+#   - forward_position_controller
