@@ -21,14 +21,14 @@
 namespace ros2_control_driver
 {
 
-class RobotDriverROS2Control : public mc_robot_interface::RobotDriver
+class RobotDriverROS2Control : public robot_interface::RobotDriver
 {
 public:
   RobotDriverROS2Control(const std::string & name,
                          const std::string & ip,
                          uint16_t port,
                          const std::string & config_path,
-                         const std::vector<mc_robot_interface::GripperInfo> & grippers);
+                         const std::vector<robot_interface::GripperInfo> & grippers);
 
   ~RobotDriverROS2Control() override;
 
@@ -107,14 +107,13 @@ private:
 
 extern "C"
 {
-  MC_ROBOT_DRIVER_DLLAPI void MC_RTC_ROBOT_DRIVER(std::vector<std::string> & classes);
+  ROBOT_DRIVER_DLLAPI void ROBOT_DRIVER_PLUGIN(std::vector<std::string> & classes);
 
-  MC_ROBOT_DRIVER_DLLAPI mc_robot_interface::RobotDriver * create(
-      const std::string & name,
-      const std::string & ip,
-      const uint16_t & port,
-      const std::string & config_path,
-      const std::vector<mc_robot_interface::GripperInfo> & grippers);
+  ROBOT_DRIVER_DLLAPI robot_interface::RobotDriver * create(const std::string & name,
+                                                            const std::string & ip,
+                                                            const uint16_t & port,
+                                                            const std::string & config_path,
+                                                            const std::vector<robot_interface::GripperInfo> & grippers);
 
-  MC_ROBOT_DRIVER_DLLAPI void destroy(mc_robot_interface::RobotDriver * ptr);
+  ROBOT_DRIVER_DLLAPI void destroy(robot_interface::RobotDriver * ptr);
 }
