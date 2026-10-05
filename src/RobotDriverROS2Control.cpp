@@ -16,7 +16,7 @@ RobotDriverROS2Control::RobotDriverROS2Control(const std::string & name,
                                                const std::string & /*ip*/,
                                                uint16_t /*port*/,
                                                const std::string & config_path,
-                                               const std::vector<mc_robot_interface::GripperInfo> & grippers)
+                                               const std::vector<robot_interface::GripperInfo> & grippers)
 {
   auto config = mc_rtc::Configuration(config_path);
 
@@ -348,27 +348,27 @@ void RobotDriverROS2Control::tauJ(const std::vector<double> & tau)
 
 // Lets robot_interface refuse this plugin (instead of crashing) once the
 // RobotDriver interface changes and the plugin needs a rebuild.
-MC_ROBOT_DRIVER_EXPORT_ABI_VERSION()
+ROBOT_DRIVER_EXPORT_ABI_VERSION()
 
 extern "C"
 {
   void LOAD_GLOBAL() {}
 
-  void MC_RTC_ROBOT_DRIVER(std::vector<std::string> & classes)
+  void ROBOT_DRIVER_PLUGIN(std::vector<std::string> & classes)
   {
     classes.push_back("RobotDriverROS2Control");
   }
 
-  mc_robot_interface::RobotDriver * create(const std::string & name,
-                                           const std::string & ip,
-                                           const uint16_t & port,
-                                           const std::string & config_path,
-                                           const std::vector<mc_robot_interface::GripperInfo> & grippers)
+  robot_interface::RobotDriver * create(const std::string & name,
+                                        const std::string & ip,
+                                        const uint16_t & port,
+                                        const std::string & config_path,
+                                        const std::vector<robot_interface::GripperInfo> & grippers)
   {
     return new ros2_control_driver::RobotDriverROS2Control(name, ip, port, config_path, grippers);
   }
 
-  void destroy(mc_robot_interface::RobotDriver * ptr)
+  void destroy(robot_interface::RobotDriver * ptr)
   {
     delete ptr;
   }
