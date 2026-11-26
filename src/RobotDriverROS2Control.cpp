@@ -189,7 +189,8 @@ void RobotDriverROS2Control::checkControllersActive(const std::string & controll
       continue;
     }
 
-    const auto & controllers = future.get()->controller;
+    const auto response = future.get();
+    const auto & controllers = response->controller;
     last_error.clear();
     for(const auto & name : required_controllers)
     {
