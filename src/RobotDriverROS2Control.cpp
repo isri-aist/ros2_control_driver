@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <fmt/core.h>
+#include <future>
 #include <iterator>
 #include <numeric>
 #include <stdexcept>
@@ -11,6 +12,12 @@
 
 namespace ros2_control_driver
 {
+
+namespace
+{
+// Well below the 5 s `uri manager` gives an autostarted interface to exit
+constexpr auto stop_timeout = std::chrono::seconds(2);
+} // namespace
 
 RobotDriverROS2Control::RobotDriverROS2Control(const std::string & name,
                                                const std::string & /*ip*/,
@@ -48,11 +55,22 @@ RobotDriverROS2Control::RobotDriverROS2Control(const std::string & name,
 
   const std::string joint_states_topic = config("joint_states_topic", std::string{"/joint_states"});
   const std::string controller_manager_node = config("controller_manager_node", std::string{"/controller_manager"});
-  const auto required_controllers = config("required_controllers", std::vector<std::string>{});
+  auto required_controllers = config("required_controllers", std::vector<std::string>{});
+  stop_controllers_ = config("stop_controllers", std::vector<std::string>{});
+  // A typo in stop_controllers must not go unnoticed until the robot has to stop
+  for(const auto & controller : stop_controllers_)
+  {
+    if(std::find(required_controllers.begin(), required_controllers.end(), controller) == required_controllers.end())
+    {
+      required_controllers.push_back(controller);
+    }
+  }
 
   if(!rclcpp::ok())
   {
-    rclcpp::init(0, nullptr);
+    // No signal handlers: on Ctrl+C they would shut ROS down before stop() can
+    // reach controller_manager. uri handles the signals itself.
+    rclcpp::init(0, nullptr, rclcpp::InitOptions(), rclcpp::SignalHandlerOptions::None);
   }
   executor_ = std::make_unique<rclcpp::executors::SingleThreadedExecutor>();
   node_ = std::make_shared<rclcpp::Node>("mc_rtc_ros2_control_driver_" + name);
@@ -60,6 +78,17 @@ RobotDriverROS2Control::RobotDriverROS2Control(const std::string & name,
   if(!required_controllers.empty())
   {
     checkControllersActive(controller_manager_node, required_controllers);
+  }
+
+  if(!stop_controllers_.empty())
+  {
+    switch_client_ = node_->create_client<controller_manager_msgs::srv::SwitchController>(controller_manager_node
+                                                                                          + "/switch_controller");
+    if(!switch_client_->wait_for_service(std::chrono::seconds(5)))
+    {
+      throw std::runtime_error(
+          fmt::format("[RobotDriverROS2Control] '{}/switch_controller' service unavailable", controller_manager_node));
+    }
   }
 
   joint_state_sub_ = node_->create_subscription<sensor_msgs::msg::JointState>(
@@ -114,6 +143,12 @@ RobotDriverROS2Control::RobotDriverROS2Control(const std::string & name,
                              "joint_trajectory_topics");
   }
 
+  if(!effort_groups_.empty() && stop_controllers_.empty())
+  {
+    fmt::print("[RobotDriverROS2Control] Warning: effort_command_topic(s) set without 'stop_controllers': in torque "
+               "mode, the robot will not be stopped when the control loop ends\n");
+  }
+
   executor_->add_node(node_);
   spin_thread_ = std::make_unique<std::thread>([this] { executor_->spin(); });
 
@@ -154,7 +189,8 @@ void RobotDriverROS2Control::checkControllersActive(const std::string & controll
       continue;
     }
 
-    const auto & controllers = future.get()->controller;
+    const auto response = future.get();
+    const auto & controllers = response->controller;
     last_error.clear();
     for(const auto & name : required_controllers)
     {
@@ -342,6 +378,28 @@ void RobotDriverROS2Control::speedJ(const std::vector<double> & alpha)
 void RobotDriverROS2Control::tauJ(const std::vector<double> & tau)
 {
   publishCommandGroups(effort_groups_, "effort", tau);
+}
+
+void RobotDriverROS2Control::stop()
+{
+  if(!switch_client_) return;
+
+  using SwitchController = controller_manager_msgs::srv::SwitchController;
+  auto request = std::make_shared<SwitchController::Request>();
+  request->deactivate_controllers = stop_controllers_;
+  request->strictness = SwitchController::Request::BEST_EFFORT;
+
+  auto future = switch_client_->async_send_request(request);
+  if(future.wait_for(stop_timeout) != std::future_status::ready)
+  {
+    throw std::runtime_error("[RobotDriverROS2Control] switch_controller call timed out, stop_controllers may still be "
+                             "active");
+  }
+  if(!future.get()->ok)
+  {
+    throw std::runtime_error("[RobotDriverROS2Control] controller_manager could not deactivate stop_controllers");
+  }
+  fmt::print("[RobotDriverROS2Control] Deactivated stop_controllers\n");
 }
 
 } // namespace ros2_control_driver

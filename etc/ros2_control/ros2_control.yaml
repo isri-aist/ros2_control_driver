@@ -60,6 +60,14 @@ required_controllers:
   - joint_state_broadcaster
   - forward_position_controller
 
+# Needed in torque mode (effort_command_topic): the controllers to deactivate
+# when the control loop ends (manager lost, Ctrl+C...). Without it, the effort
+# controller keeps applying its last command. They are also checked at startup,
+# like required_controllers, and must be reactivated before the next start.
+# How the robot behaves once they are inactive depends on its hardware.
+# stop_controllers:
+#   - forward_effort_controller
+
 # Worked example: OpenArm (https://docs.openarm.dev/1.0/software/ros2/control/)
 # No driver code changes needed for this robot. Only config differs. This
 # particular file configures a SINGLE arm (openarm_left) via the singular

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <controller_manager_msgs/srv/list_controllers.hpp>
+#include <controller_manager_msgs/srv/switch_controller.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
@@ -43,6 +44,10 @@ public:
   void servoJ(const std::vector<double> & q) override;
   void speedJ(const std::vector<double> & alpha) override;
   void tauJ(const std::vector<double> & tau) override;
+
+  // Deactivate the controllers listed in the config's stop_controllers. Throws
+  // if controller_manager does not confirm it.
+  void stop() override;
 
 private:
   void checkControllersActive(const std::string & controller_manager_node,
@@ -85,7 +90,10 @@ private:
   std::vector<size_t> joint_state_index_;
   bool joint_state_index_resolved_ = false;
 
+  std::vector<std::string> stop_controllers_;
+
   rclcpp::Node::SharedPtr node_;
+  rclcpp::Client<controller_manager_msgs::srv::SwitchController>::SharedPtr switch_client_;
   std::unique_ptr<std::thread> spin_thread_;
   std::unique_ptr<rclcpp::executors::SingleThreadedExecutor> executor_;
 
