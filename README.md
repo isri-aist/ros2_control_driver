@@ -112,10 +112,29 @@ require calling `controller_manager`'s `/switch_controller` service to
 activate a different `forward_command_controller`, which this driver doesn't
 do today (not needed while `controller.mode` is fixed per robot at startup).
 
+## Torque mode: stopping the robot
+
+With `effort_command_topic(s)`, list the effort controllers in
+`stop_controllers`. When the control loop ends in torque mode (manager lost,
+Ctrl+C or an exception), the driver deactivates them through
+`controller_manager`'s `/switch_controller` service. Without `stop_controllers`,
+the effort controllers stay active and the robot is not stopped.
+
+How the robot behaves once they are inactive (brakes, hold, free motion) depends
+on its hardware plugin: **check it in simulation or under supervision first**.
+
+`stop_controllers` must be active at startup, so reactivate them before
+restarting `uri interface`:
+
+```bash
+ros2 control switch_controllers --activate forward_effort_controller --strict
+```
+
 ## Switching which controller is active on `controller_manager`
 
 This driver only ever *talks to* whatever controller is currently active.
-It doesn't load, activate, or switch controllers itself. Only one controller
+Except for `stop_controllers` above, which it deactivates, it doesn't load,
+activate, or switch controllers itself. Only one controller
 can claim a given joint's command interface at a time, so to point this
 driver's config at a different controller you first need to free that
 interface on the `controller_manager` side. All of this is plain
